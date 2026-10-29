@@ -11,8 +11,15 @@ RUN apt-get update \
     libglib2.0-0 \
     && rm -rf /var/lib/apt/lists/*
 
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+COPY requirements.txt constraints.txt ./
+RUN --mount=from=ghcr.io/astral-sh/uv:0.13.4,source=/uv,target=/bin/uv \
+    set -e; \
+    # 7-day supply-chain cooldown.
+    # eMudhra / emSign emergency updates bypass the cooldown; review after 2026-10-27
+    UV_PIP_ARGS="--exclude-newer P7D --exclude-newer-package certifi=false --exclude-newer-package pip=false --constraint constraints.txt"; \
+    # The base image's pip vendors its own certifi, so upgrade it too
+    uv pip install --system $UV_PIP_ARGS --no-cache --upgrade pip; \
+    uv pip install --system $UV_PIP_ARGS --no-cache -r requirements.txt
 
 # Disable Unstructured analytics
 ENV SCARF_NO_ANALYTICS=true
